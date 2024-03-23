@@ -7,7 +7,7 @@ before:
     - go mod tidy
 
 builds:
-  - main: ./cmd/azure-clientid-syncer
+  - main: ./cmd
     goos:
       - linux
       - darwin
@@ -18,8 +18,8 @@ builds:
 dockers:
   # You can have multiple Docker images.
   - image_templates:
-      - "ghcr.io/shiftavenue/azure-clientid-syncer:{{ .Env.Version }}"
-      - "ghcr.io/shiftavenue/azure-clientid-syncer:latest"
+      - "ghcr.io/shiftavenue/argocd-ado-awi-cred-sidecar:{{ .Env.Version }}"
+      - "ghcr.io/shiftavenue/argocd-ado-awi-cred-sidecar:latest"
 
 changelog:
   use: github
