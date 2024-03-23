@@ -1,0 +1,37 @@
+# .goreleaser.yaml
+release:
+  draft: false
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: ./cmd/azure-clientid-syncer
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+dockers:
+  # You can have multiple Docker images.
+  - image_templates:
+      - "ghcr.io/shiftavenue/azure-clientid-syncer:{{ .Env.Version }}"
+      - "ghcr.io/shiftavenue/azure-clientid-syncer:latest"
+
+changelog:
+  use: github
+  groups:
+    - title: Breaking changes
+      regexp: "(feat|fix)(\\(.*\\))?!:"
+      order: 0
+    - title: Features
+      regexp: "feat(\\(.*\\))?:"
+      order: 1
+    - title: 'Bug fixes'
+      regexp: "fix(\\(.*\\))?:"
+      order: 2
+    - title: Other changes
+      order: 999
