@@ -7,7 +7,7 @@ import (
 // Config holds configuration from the env variables
 type Config struct {
 	Namespace                string `envconfig:"NAMESPACE" default:"argocd"`
-	MatchUrl								 string `envconfig:"MATCH_URL" default:"https://dev.azure.com/"`
+	MatchUrl								 string `envconfig:"MATCH_URL" default:"https://dev.azure.com"`
 }
 
 // ParseConfig parses the configuration from env variables

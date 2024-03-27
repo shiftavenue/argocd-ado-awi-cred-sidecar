@@ -19,53 +19,16 @@ func main() {
 	log := kzap.New(kzap.Level(zapcore.Level(logLevel)))
 
 	klog.SetLogger(log)
-
-	// TODO: Loop it with a ticker https://pkg.go.dev/time#NewTicker or check accessToken validity
-	kuberneteshelper, err := pkg.NewKubernetesHelper(log)
+	coordinator, err := pkg.NewCoordinator(log)
 	if err != nil {
-		log.Error(err, "Failed to create KubernetesHelper")
+		log.Error(err, "Failed to create coordinator")
 		return
 	}
-	config, err := pkg.ParseConfig()
-	if err != nil {
-		return
-	}
-	azurehelper, err := pkg.NewAzureHelper(log)
-	if err != nil {
-		return
-	}
-
-	var expirationTime time.Time
 
 	for {
-		current := time.Now()
-		remainingTime := int(expirationTime.Sub(current).Seconds())
-		bufferTime := int((time.Minute * 5).Seconds())
-
-		if remainingTime < bufferTime {
-			log.Info("Refreshing access token")
-			secret, err := kuberneteshelper.SearchSecret(config.Namespace, config.MatchUrl)
-			if err != nil {
-				return
-			} else if secret == nil {
-				log.Info("No secret found")
-				return
-			}
-			log.Info("Secret found", "secretName", secret.Name, "namespace", secret.Namespace)
-
-			accessToken, err := azurehelper.GetAzureDevOpsAccessToken()
-			if err != nil {
-				return
-			}
-			expirationTime = accessToken.ExpiresOn
-			log.Info("Access token retrieved", "expiration", accessToken.ExpiresOn)
-			err = kuberneteshelper.UpdateSecret(accessToken.Token, secret)
-			if err != nil {
-				log.Error(err, "Failed to update secret")
-				return
-			}
-		} else {
-			log.Info("Access token is still valid", "expiration", expirationTime, "remainingTime", remainingTime)
+		err := coordinator.EvaluateAccessTokenExpiration()
+		if err != nil {
+			log.Error(err, "Failed to evaluate access token expiration time")
 		}
 		time.Sleep(60 * time.Second)
 	}
