@@ -68,6 +68,7 @@ func (k *KubernetesHelper) SearchSecret(urls []string) (*[]corev1.Secret, error)
 func (k *KubernetesHelper) UpdateSecret(accessToken string, secret *corev1.Secret) error {
 	updatedSecret := secret.DeepCopy()
 	updatedSecret.Data["password"] = []byte(accessToken)
+	updatedSecret.Data["username"] = []byte(DefaultUsername)
 	_, err := k.clientSet.CoreV1().Secrets(updatedSecret.Namespace).Update(context.Background(), updatedSecret, v1.UpdateOptions{})
 	if err != nil {
 		k.logger.Error(err, "Failed to update secret", "namespace", updatedSecret.Namespace, "name", updatedSecret.Name)
