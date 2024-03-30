@@ -16,11 +16,11 @@ type Coordinator struct {
 }
 
 func NewCoordinator(log logr.Logger) (*Coordinator, error) {
-	kubernetesHelper, err := NewKubernetesHelper(log)
+	config, err := ParseConfig()
 	if err != nil {
 		return nil, err
 	}
-	config, err := ParseConfig()
+	kubernetesHelper, err := NewKubernetesHelper(log, config.Namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -37,39 +37,54 @@ func NewCoordinator(log logr.Logger) (*Coordinator, error) {
 }
 
 func (c *Coordinator) EvaluateAccessTokenExpiration() error {
-	secret, err := c.kubernetesHelper.SearchSecret(c.config.Namespace, c.config.MatchUrl)
+	urlsToEvaluate := c.config.MatchUrls
+	var err error = nil
+	if c.config.InClusterConfiguration {
+		c.log.Info("Using in cluster configuration")
+		urlsToEvaluate, err = c.kubernetesHelper.GetInClusterConfiguration(c.config.InClusterConfigMap)
+		if err != nil {
+			c.log.Error(err, "Failed to get in cluster configuration")
+			return err
+		}
+	}
+	c.log.Info("Urls to be evaluated", "urls", urlsToEvaluate)
+
+	secrets, err := c.kubernetesHelper.SearchSecret(urlsToEvaluate)
 	if err != nil {
 		c.log.Error(err, "Failed to search secret")
 		return err
-	} else if secret == nil {
+	} else if secrets == nil || len(*secrets) == 0 {
 		c.log.Info("No secret found")
 		return nil
 	}
 
-	token, ok := c.evaluateTokenSecret(secret)
-	remainingTime, bufferTime := 0, 0
+	for _, secret := range *secrets {
+		token, ok := c.evaluateTokenSecret(&secret)
+		remainingTime, bufferTime := 0, 0
 
-	if ok {
-		current := time.Now()
-		remainingTime = int(token.Claims.(jwt.MapClaims)["exp"].(float64)) - int(current.Unix())
-		bufferTime = int((time.Minute * 5).Seconds())
-	}
+		if ok {
+			current := time.Now()
+			remainingTime = int(token.Claims.(jwt.MapClaims)["exp"].(float64)) - int(current.Unix())
+			bufferTime = int((time.Minute * 5).Seconds())
+		}
 
-	if remainingTime < bufferTime || !ok {
-		accessToken, err := c.azureHelper.GetAzureDevOpsAccessToken()
-		if err != nil {
-			c.log.Error(err, "Failed to get access token")
-			return err
+		if remainingTime < bufferTime || !ok {
+			accessToken, err := c.azureHelper.GetAccessToken(string(secret.Data["url"]))
+			if err != nil {
+				c.log.Error(err, "Failed to get access token")
+				return err
+			}
+			c.log.Info("Access token retrieved", "token", accessToken.Raw)
+			err = c.kubernetesHelper.UpdateSecret(accessToken.Raw, &secret)
+			if err != nil {
+				c.log.Error(err, "Failed to update secret")
+				return err
+			}
+			c.log.Info("Access token retrieved. Update expiration time", "expirationTime", time.Unix(int64(accessToken.Claims.(jwt.MapClaims)["exp"].(float64)), 0))
+			return nil
 		}
-		err = c.kubernetesHelper.UpdateSecret(accessToken.Token, secret)
-		if err != nil {
-			c.log.Error(err, "Failed to update secret")
-			return err
-		}
-		c.log.Info("Access token retrieved. Update expiration time", "expirationTime", accessToken.ExpiresOn)
-		return nil
+		c.log.Info("Access token is still valid", "remainingTime", remainingTime)
 	}
-	c.log.Info("Access token is still valid", "remainingTime", remainingTime)
 	return nil
 }
 
