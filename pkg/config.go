@@ -6,8 +6,10 @@ import (
 
 // Config holds configuration from the env variables
 type Config struct {
-	Namespace                string `envconfig:"NAMESPACE" default:"argocd"`
-	MatchUrl								 string `envconfig:"MATCH_URL" default:"https://dev.azure.com"`
+	Namespace              string   `envconfig:"POD_NAMESPACE" default:"argocd"`
+	MatchUrls              []string `envconfig:"MATCH_URLS" default:"https://dev.azure.com"`
+	InClusterConfiguration bool     `envconfig:"IN_CLUSTER_CONFIG" default:"true"`
+	InClusterConfigMap		 string   `envconfig:"IN_CLUSTER_CONFIG_MAP" default:"argocd-ado-awi-cred-sidecar"`
 }
 
 // ParseConfig parses the configuration from env variables
