@@ -15,7 +15,8 @@ This project tries to use a sidecar container with workload identity to update A
         apiVersion: v1
         fieldPath: metadata.namespace
 ```
-4. Deploy a config map into the argocd namespace with the following content:
+4. Add credential templates in the ArgoCD UI under repositories or add secret manifests for your required repositories. The username and password fields can be set, but will be overridden by the sidecar container afterwards.
+5. Deploy a config map into the argocd namespace with the following content:
 ```yaml
 apiVersion: v1
 data:
@@ -25,3 +26,4 @@ metadata:
   name: argocd-ado-awi-cred-sidecar
   namespace: argocd
 ```
+> **_NOTE:_**  The matchUrls field is a comma separated list of URLs that should be overridden by the sidecar container. The URLs can be the base URL of Azure DevOps and/or the Azure Container Registry used for helm charts. The sidecar container will only override the credentials for the URLs in this list. The example above will override the credentials for **Azure DevOps** and the **Azure Container Registry with the name myacrname**.
