@@ -74,16 +74,16 @@ func (c *Coordinator) EvaluateAccessTokenExpiration() error {
 				c.log.Error(err, "Failed to get access token")
 				return err
 			}
-			c.log.Info("Access token retrieved", "token", accessToken.Raw)
+			c.log.Info("Access token retrieved. Update expiration time", "expirationTime", time.Unix(int64(accessToken.Claims.(jwt.MapClaims)["exp"].(float64)), 0))
 			err = c.kubernetesHelper.UpdateSecret(accessToken.Raw, &secret)
 			if err != nil {
 				c.log.Error(err, "Failed to update secret")
 				return err
 			}
-			c.log.Info("Access token retrieved. Update expiration time", "expirationTime", time.Unix(int64(accessToken.Claims.(jwt.MapClaims)["exp"].(float64)), 0))
-			return nil
+			c.log.Info("Secret updated", "name", secret.Name, "namespace", secret.Namespace)
+			continue
 		}
-		c.log.Info("Access token is still valid", "remainingTime", remainingTime)
+		c.log.Info("Access token is still valid", "remainingTime", remainingTime, "name", secret.Name, "namespace", secret.Namespace)
 	}
 	return nil
 }

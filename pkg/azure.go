@@ -63,7 +63,8 @@ func (a *AzureHelper) getAzureContainerRegistryAccessToken(acrServiceName string
 	ctx := context.Background()
 	aadToken, err := a.credential.GetToken(ctx, policy.TokenRequestOptions{Scopes: []string{AzureContainerRegistryScope}})
 	if err != nil {
-		panic(err)
+		a.log.Error(err, "Cannot fetch token for ACR scope", "name", acrServiceName)
+		return nil, err
 	}
 	aadTokenJWT, _, err := new(jwt.Parser).ParseUnverified(string(aadToken.Token), jwt.MapClaims{})
 	if err != nil {
@@ -79,7 +80,13 @@ func (a *AzureHelper) getAzureContainerRegistryAccessToken(acrServiceName string
 	}
 	jsonResponse, err := http.PostForm(fmt.Sprintf("https://%s/oauth2/exchange", acrServiceName), formData)
 	if err != nil {
-		panic(err)
+		a.log.Error(err, "Failed to fetch token from ACR with managed identity", "name", acrServiceName, "payload", formData.Encode())
+		return nil, err
+	}
+	if jsonResponse.StatusCode != 200 {
+		err = fmt.Errorf("unable to fetch token from ACR. name: %s, payload: %s, status, %s", acrServiceName, formData.Encode(), jsonResponse.Status)
+		a.log.Error(err, "ACR error")
+		return nil, err
 	}
 	var response map[string]interface{}
 	json.NewDecoder(jsonResponse.Body).Decode(&response)
