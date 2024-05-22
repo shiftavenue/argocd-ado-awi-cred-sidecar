@@ -26,18 +26,26 @@ jobs:
         with:
           versionSpec: '5.x'
       - name: Adding PR commit message
+        id: add_pr_commmit_message
         run: |
-          echo "Checking PR title for $GITHUB_HEAD_REF based PR..."
-          squash_commit_name=$(gh pr view $GITHUB_HEAD_REF --json title -q '.title')
+          echo "Checking PR title for PR $PR_NUMBER..."
+          squash_commit_name=$(gh pr view $PR_NUMBER --json title -q '.title')
           git config --global user.email $(git log -1 --pretty=format:'%ae')
           git config --global user.name $(git log -1 --pretty=format:'%an')
           git commit --amend -m "$squash_commit_name"
+          if [[ $squash_commit_name =~ ^(none|skip|test|refactor|docs|build|ci|style)(\(.*\))?: ]]; then
+            echo "PR title is not a release title"
+            echo "skipnext=true" >> $GITHUB_OUTPUT
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.number }}
       - name: Determine Version
         id: gitversion
         uses: gittools/actions/gitversion/execute@v0
-      - name: Create Release
+        if : ( steps.add_pr_commmit_message.outputs.skipnext  != 'true' )
+      - name: Check Release
+        if : ( steps.add_pr_commmit_message.outputs.skipnext  != 'true' )
         run: |
           latest_tag=$(git tag -l --sort -version:refname | head -n 1)
           echo "Latest tag: $latest_tag"
