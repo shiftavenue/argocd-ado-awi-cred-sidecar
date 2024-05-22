@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"context"
+	"os"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -13,8 +14,8 @@ import (
 )
 
 type KubernetesHelper struct {
-	logger    logr.Logger
-	clientSet *kubernetes.Clientset
+	logger           logr.Logger
+	clientSet        *kubernetes.Clientset
 	defaultNamespace string
 }
 
@@ -22,7 +23,7 @@ func NewKubernetesHelper(log logr.Logger, defaultNamespace string) (*KubernetesH
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		log.Info("Failed to get in cluster config, trying kubeconfig")
-		config, err = clientcmd.BuildConfigFromFlags("", "kubeconfig")
+		config, err = clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
 		if err != nil {
 			log.Error(err, "Failed to get kubeconfig")
 			return nil, err
@@ -35,8 +36,8 @@ func NewKubernetesHelper(log logr.Logger, defaultNamespace string) (*KubernetesH
 		return nil, err
 	}
 	return &KubernetesHelper{
-		logger:    log,
-		clientSet: clientSet,
+		logger:           log,
+		clientSet:        clientSet,
 		defaultNamespace: defaultNamespace,
 	}, nil
 }
@@ -53,7 +54,6 @@ func (k *KubernetesHelper) SearchSecret(urls []string) (*[]corev1.Secret, error)
 	matchingSecrets := make([]corev1.Secret, 0)
 	for _, secret := range secretList.Items {
 		k.logger.Info("Checking secret", "secret", secret.Name)
-
 		secretUrl := string(secret.Data["url"])
 		for _, url := range urls {
 			if strings.Contains(secretUrl, url) {
@@ -69,11 +69,13 @@ func (k *KubernetesHelper) UpdateSecret(accessToken string, secret *corev1.Secre
 	updatedSecret := secret.DeepCopy()
 	updatedSecret.Data["password"] = []byte(accessToken)
 	updatedSecret.Data["username"] = []byte(DefaultUsername)
+	k.logger.Info("Updating secret", "namespace", updatedSecret.Namespace, "name", updatedSecret.Name)
 	_, err := k.clientSet.CoreV1().Secrets(updatedSecret.Namespace).Update(context.Background(), updatedSecret, v1.UpdateOptions{})
 	if err != nil {
 		k.logger.Error(err, "Failed to update secret", "namespace", updatedSecret.Namespace, "name", updatedSecret.Name)
 		return err
 	}
+	k.logger.Info("Updated secret", "namespace", updatedSecret.Namespace, "name", updatedSecret.Name)
 	return nil
 }
 

@@ -2,7 +2,7 @@ package pkg
 
 const (
 	// LabelSelector is the label selector for the secret
-	LabelSelector = "argocd.argoproj.io/secret-type=repo-creds"
+	LabelSelector = "argocd.argoproj.io/secret-type in (repo-creds, repository)"
 	// Scope for the Azure DevOps access token
 	AzureDevOpsScope = "499b84ac-1321-427f-aa17-267ca6975798/.default"
 	// Scope for Azure COntainer Registry access token
